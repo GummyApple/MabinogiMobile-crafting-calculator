@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>제작 재료 계산기</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Malgun Gothic', sans-serif;
+        }
+        body {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .panel {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .panel h2 {
+            margin-top: 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+        .input-panel h2 { color: #70AD47; }
+        .result-panel h2 { color: #ED7D31; }
+        .recipe-panel h2 { color: #4472C4; }
+        
+        .input-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        .input-row select {
+            flex: 2;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .input-row input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            text-align: center;
+        }
+        .input-row button {
+            padding: 8px 12px;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .input-row button:hover {
+            background: #ee5a5a;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-calc {
+            background: #70AD47;
+            color: white;
+        }
+        .btn-calc:hover { background: #5d9438; }
+        .btn-add {
+            background: #4472C4;
+            color: white;
+        }
+        .btn-add:hover { background: #3761b0; }
+        .btn-clear {
+            background: #888;
+            color: white;
+        }
+        .btn-clear:hover { background: #666; }
+        
+        .result-section {
+            margin-bottom: 20px;
+        }
+        .result-section h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #666;
+        }
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .result-table th, .result-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        .result-table th {
+            background: #f8f8f8;
+            font-weight: bold;
+        }
+        .result-table .qty {
+            text-align: right;
+            font-weight: bold;
+            color: #ED7D31;
+        }
+        .result-table .crafts {
+            text-align: right;
+            color: #4472C4;
+        }
+        
+        .recipe-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .recipe-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 3px solid #4472C4;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .recipe-item:hover {
+            background: #e9ecef;
+            transform: translateX(3px);
+        }
+        .recipe-item.intermediate {
+            border-left-color: #ED7D31;
+        }
+        .recipe-name {
+            font-weight: bold;
+            color: #333;
+        }
+        .recipe-yield {
+            font-size: 12px;
+            color: #888;
+            margin-left: 8px;
+        }
+        .recipe-materials {
+            font-size: 13px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .empty-msg {
+            color: #999;
+            text-align: center;
+            padding: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>🔨 제작 재료 계산기</h1>
+    
+    <div class="container">
+        <div class="left-col">
+            <div class="panel input-panel">
+                <h2>📝 제작 목록</h2>
+                <div id="inputList"></div>
+                <div class="btn-group">
+                    <button class="btn btn-add" onclick="addInputRow()">+ 추가</button>
+                    <button class="btn btn-clear" onclick="clearAll()">초기화</button>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-calc" onclick="calculate()">🔍 계산하기</button>
+                </div>
+            </div>
+            
+            <div class="panel recipe-panel" style="margin-top: 20px;">
+                <h2>📖 레시피 목록 <span style="font-size: 12px; color: #888; font-weight: normal;">(클릭: 추가 / 우클릭: 제거)</span></h2>
+                <div id="recipeList" class="recipe-list"></div>
+            </div>
+        </div>
+        
+        <div class="panel result-panel">
+            <h2>📦 계산 결과</h2>
+            <div id="resultArea">
+                <p class="empty-msg">왼쪽에서 아이템을 선택하고 계산하기를 눌러주세요.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 레시피 데이터베이스
+        const recipes = {
+            // 요리
+            "야채볶음": {
+                yield: 1,
+                materials: [
+                    { name: "감자", qty: 8 },
+                    { name: "양파", qty: 3 },
+                    { name: "양배추", qty: 6 },
+                    { name: "허브", qty: 2 }
+                ]
+            },
+            "카레라이스": {
+                yield: 1,
+                materials: [
+                    { name: "고기", qty: 10 },
+                    { name: "밥", qty: 3 },
+                    { name: "당근", qty: 3 },
+                    { name: "감자", qty: 8 },
+                    { name: "카레 가루", qty: 2 }
+                ]
+            },
+            "농어 매운탕": {
+                yield: 1,
+                materials: [
+                    { name: "농어", qty: 6 },
+                    { name: "무", qty: 4 },
+                    { name: "양파", qty: 6 },
+                    { name: "물이 든 병", qty: 5 },
+                    { name: "고춧가루", qty: 4 },
+                    { name: "후추", qty: 2 }
+                ]
+            },
+            "금은 매운탕": {
+                yield: 1,
+                materials: [
+                    { name: "금린어", qty: 4 },
+                    { name: "은붕어", qty: 4 },
+                    { name: "무", qty: 6 },
+                    { name: "물이 든 병", qty: 5 },
+                    { name: "양파", qty: 10 },
+                    { name: "고춧가루", qty: 4 }
+                ]
+            },
+            "대만찬": {
+                yield: 1,
+                materials: [
+                    { name: "만찬 재료: 꺼지지 않는 불", qty: 4 },
+                    { name: "숙성된 커다란 고기", qty: 8 },
+                    { name: "묵직한 감자", qty: 24 },
+                    { name: "토마토", qty: 16 },
+                    { name: "양파", qty: 6 },
+                    { name: "파스닙", qty: 16 },
+                    { name: "소금", qty: 4 }
+                ]
+            },
+            "녹차 크레이프 케이크": {
+                yield: 1,
+                materials: [
+                    { name: "말린 찻잎", qty: 10 },
+                    { name: "딸기", qty: 6 },
+                    { name: "생크림", qty: 6 },
+                    { name: "밀가루", qty: 4 },
+                    { name: "설탕", qty: 6 }
+                ]
+            },
+            "사과 생크림 케이크": {
+                yield: 1,
+                materials: [
+                    { name: "사과", qty: 12 },
+                    { name: "생크림", qty: 2 },
+                    { name: "밀가루", qty: 4 },
+                    { name: "설탕", qty: 9 }
+                ]
+            },
+            "호박 수프": {
+                yield: 1,
+                materials: [
+                    { name: "호박", qty: 10 },
+                    { name: "감자", qty: 6 },
+                    { name: "양파", qty: 6 },
+                    { name: "생강", qty: 2 },
+                    { name: "생크림", qty: 5 }
+                ]
+            },
+            "샤와르마": {
+                yield: 1,
+                materials: [
+                    { name: "담백한 고기", qty: 10 },
+                    { name: "콩", qty: 12 },
+                    { name: "밀가루", qty: 3 },
+                    { name: "양배추", qty: 5 },
+                    { name: "레몬", qty: 2 }
+                ]
+            },
+            "짜먹는 간식": {
+                yield: 1,
+                materials: [
+                    { name: "고기", qty: 3 },
+                    { name: "허브", qty: 1 },
+                    { name: "물이 든 병", qty: 1 }
+                ]
+            },
+            "홍차": {
+                yield: 1,
+                materials: [
+                    { name: "발효된 찻잎", qty: 8 },
+                    { name: "물이 든 병", qty: 4 },
+                    { name: "옷감", qty: 2 }
+                ]
+            },
+            "녹차": {
+                yield: 1,
+                materials: [
+                    { name: "말린 찻잎", qty: 8 },
+                    { name: "물이 든 병", qty: 4 }
+                ]
+            },
+            "크림소스 스테이크": {
+                yield: 1,
+                materials: [
+                    { name: "고기", qty: 10 },
+                    { name: "생크림", qty: 2 },
+                    { name: "마늘", qty: 2 },
+                    { name: "후추", qty: 3 }
+                ]
+            },
+            "사과 수플레": {
+                yield: 1,
+                materials: [
+                    { name: "사과", qty: 8 },
+                    { name: "밀가루", qty: 2 },
+                    { name: "달걀", qty: 4 },
+                    { name: "설탕", qty: 4 }
+                ]
+            },
+            "고등어와 연어 스테이크": {
+                yield: 1,
+                materials: [
+                    { name: "고등어", qty: 5 },
+                    { name: "연어", qty: 3 },
+                    { name: "마요네즈", qty: 2 },
+                    { name: "아스파라거스", qty: 4 },
+                    { name: "소금", qty: 2 },
+                    { name: "후추", qty: 3 }
+                ]
+            },
+            
+            // 중간 재료
+            "밥": {
+                yield: 3,
+                materials: [
+                    { name: "물에 불린 쌀", qty: 8 },
+                    { name: "물이 든 병", qty: 2 }
+                ]
+            },
+            "물에 불린 쌀": {
+                yield: 5,
+                materials: [
+                    { name: "쌀", qty: 30 },
+                    { name: "물이 든 병", qty: 6 }
+                ]
+            },
+            "숙성된 커다란 고기": {
+                yield: 1,
+                materials: [
+                    { name: "커다란 고기", qty: 1 },
+                    { name: "허브", qty: 6 },
+                    { name: "마늘", qty: 2 },
+                    { name: "소금", qty: 2 },
+                    { name: "후추", qty: 1 }
+                ]
+            },
+            "말린 찻잎": {
+                yield: 3,
+                materials: [
+                    { name: "찻잎", qty: 30 }
+                ]
+            },
+            "생크림": {
+                yield: 3,
+                materials: [
+                    { name: "우유", qty: 12 },
+                    { name: "달걀", qty: 6 },
+                    { name: "설탕", qty: 2 }
+                ]
+            },
+            "밀가루": {
+                yield: 3,
+                materials: [
+                    { name: "밀", qty: 15 }
+                ]
+            },
+            "발효된 찻잎": {
+                yield: 3,
+                materials: [
+                    { name: "말린 찻잎", qty: 5 },
+                    { name: "옷감", qty: 1 }
+                ]
+            },
+            "마요네즈": {
+                yield: 3,
+                materials: [
+                    { name: "달걀", qty: 10 },
+                    { name: "식용유", qty: 2 }
+                ]
+            }
+        };
+
+        // 중간 재료 판별 (다른 레시피의 재료로 사용되는 것)
+        const intermediateSet = new Set();
+        Object.values(recipes).forEach(recipe => {
+            recipe.materials.forEach(mat => {
+                if (recipes[mat.name]) {
+                    intermediateSet.add(mat.name);
+                }
+            });
+        });
+
+        // 아이템 목록 (완성품 먼저 가나다순, 중간재료 아래 가나다순)
+        const itemList = Object.keys(recipes).sort((a, b) => {
+            const aIsIntermediate = intermediateSet.has(a);
+            const bIsIntermediate = intermediateSet.has(b);
+            if (aIsIntermediate !== bIsIntermediate) {
+                return aIsIntermediate ? 1 : -1;
+            }
+            return a.localeCompare(b, 'ko');
+        });
+
+        // 제작 목록 저장
+        function saveList() {
+            const rows = document.querySelectorAll('#inputList .input-row');
+            const items = [];
+            rows.forEach(row => {
+                const select = row.querySelector('select');
+                const input = row.querySelector('input');
+                if (select.value) {
+                    items.push({ name: select.value, qty: parseInt(input.value) || 1 });
+                }
+            });
+            localStorage.setItem('craftingList', JSON.stringify(items));
+        }
+
+        // 제작 목록 불러오기
+        function loadList() {
+            const saved = localStorage.getItem('craftingList');
+            if (saved) {
+                const items = JSON.parse(saved);
+                const container = document.getElementById('inputList');
+                container.innerHTML = '';
+                
+                if (items.length === 0) {
+                    addInputRow();
+                    return;
+                }
+                
+                items.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'input-row';
+                    
+                    let options = '<option value="">-- 선택 --</option>';
+                    let addedSeparator = false;
+                    itemList.forEach(i => {
+                        if (!addedSeparator && intermediateSet.has(i)) {
+                            options += '<option disabled>── 중간 재료 ──</option>';
+                            addedSeparator = true;
+                        }
+                        const selected = i === item.name ? 'selected' : '';
+                        options += `<option value="${i}" ${selected}>${i}</option>`;
+                    });
+                    
+                    row.innerHTML = `
+                        <select onchange="saveList()">${options}</select>
+                        <input type="number" value="${item.qty}" min="1" onchange="saveList()">
+                        <button onclick="this.parentElement.remove(); saveList();">✕</button>
+                    `;
+                    container.appendChild(row);
+                });
+            } else {
+                addInputRow();
+            }
+        }
+
+        // 레시피 클릭 시 제작 목록에 추가
+        function addItemToList(itemName) {
+            const container = document.getElementById('inputList');
+            const rows = container.querySelectorAll('.input-row');
+            
+            // 빈 행(-- 선택 -- 상태) 제거
+            rows.forEach(row => {
+                const select = row.querySelector('select');
+                if (select.value === '') {
+                    row.remove();
+                }
+            });
+            
+            // 이미 같은 아이템이 있는지 확인
+            const existingRows = container.querySelectorAll('.input-row');
+            for (let row of existingRows) {
+                const select = row.querySelector('select');
+                if (select.value === itemName) {
+                    // 수량 +1
+                    const input = row.querySelector('input');
+                    input.value = parseInt(input.value) + 1;
+                    saveList();
+                    return;
+                }
+            }
+            
+            // 없으면 새 행 추가
+            const row = document.createElement('div');
+            row.className = 'input-row';
+            
+            let options = '<option value="">-- 선택 --</option>';
+            let addedSeparator = false;
+            itemList.forEach(item => {
+                if (!addedSeparator && intermediateSet.has(item)) {
+                    options += '<option disabled>── 중간 재료 ──</option>';
+                    addedSeparator = true;
+                }
+                const selected = item === itemName ? 'selected' : '';
+                options += `<option value="${item}" ${selected}>${item}</option>`;
+            });
+            
+            row.innerHTML = `
+                <select onchange="saveList()">${options}</select>
+                <input type="number" value="1" min="1" onchange="saveList()">
+                <button onclick="this.parentElement.remove(); saveList();">✕</button>
+            `;
+            container.appendChild(row);
+            
+            // 스크롤을 입력 영역으로 이동
+            row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            saveList();
+        }
+
+        // 레시피 우클릭 시 제작 목록에서 수량 감소
+        function removeItemFromList(itemName) {
+            const rows = document.querySelectorAll('#inputList .input-row');
+            
+            // 해당 아이템이 있는 행을 찾아서 수량 감소
+            for (let i = rows.length - 1; i >= 0; i--) {
+                const select = rows[i].querySelector('select');
+                if (select.value === itemName) {
+                    const input = rows[i].querySelector('input');
+                    const newValue = parseInt(input.value) - 1;
+                    if (newValue <= 0) {
+                        rows[i].remove();
+                    } else {
+                        input.value = newValue;
+                    }
+                    saveList();
+                    return;
+                }
+            }
+        }
+
+        // 입력 행 추가
+        function addInputRow() {
+            const container = document.getElementById('inputList');
+            const row = document.createElement('div');
+            row.className = 'input-row';
+            
+            let options = '<option value="">-- 선택 --</option>';
+            let addedSeparator = false;
+            itemList.forEach(item => {
+                if (!addedSeparator && intermediateSet.has(item)) {
+                    options += '<option disabled>── 중간 재료 ──</option>';
+                    addedSeparator = true;
+                }
+                options += `<option value="${item}">${item}</option>`;
+            });
+            
+            row.innerHTML = `
+                <select onchange="saveList()">${options}</select>
+                <input type="number" value="1" min="1" onchange="saveList()">
+                <button onclick="this.parentElement.remove(); saveList();">✕</button>
+            `;
+            container.appendChild(row);
+        }
+
+        // 초기화
+        function clearAll() {
+            document.getElementById('inputList').innerHTML = '';
+            document.getElementById('resultArea').innerHTML = 
+                '<p class="empty-msg">왼쪽에서 아이템을 선택하고 계산하기를 눌러주세요.</p>';
+            localStorage.removeItem('craftingList');
+            addInputRow();
+        }
+
+        // 재귀적 재료 계산
+        function calculateMaterials(item, quantity, baseMaterials, intermediateCrafts, requestedItems) {
+            if (!recipes[item]) {
+                // 기초 재료
+                baseMaterials[item] = (baseMaterials[item] || 0) + quantity;
+                return;
+            }
+
+            const recipe = recipes[item];
+            const craftsNeeded = Math.ceil(quantity / recipe.yield);
+            
+            // 중간 재료 제작 횟수 기록
+            intermediateCrafts[item] = (intermediateCrafts[item] || 0) + craftsNeeded;
+
+            // 각 재료에 대해 재귀 호출
+            recipe.materials.forEach(mat => {
+                const totalNeeded = mat.qty * craftsNeeded;
+                calculateMaterials(mat.name, totalNeeded, baseMaterials, intermediateCrafts, requestedItems);
+            });
+        }
+
+        // 계산 실행
+        function calculate() {
+            const rows = document.querySelectorAll('#inputList .input-row');
+            const requests = [];
+            
+            rows.forEach(row => {
+                const item = row.querySelector('select').value;
+                const qty = parseInt(row.querySelector('input').value) || 0;
+                if (item && qty > 0) {
+                    requests.push({ item, qty });
+                }
+            });
+
+            if (requests.length === 0) {
+                alert('제작할 아이템을 선택해주세요.');
+                return;
+            }
+
+            const baseMaterials = {};
+            const intermediateCrafts = {};
+            const requestedItems = new Set(requests.map(r => r.item));
+
+            // 계산 실행
+            requests.forEach(({ item, qty }) => {
+                calculateMaterials(item, qty, baseMaterials, intermediateCrafts, requestedItems);
+            });
+
+            // 요청한 아이템은 중간재료 목록에서 제외
+            requests.forEach(({ item, qty }) => {
+                if (intermediateCrafts[item]) {
+                    const recipe = recipes[item];
+                    intermediateCrafts[item] -= Math.ceil(qty / recipe.yield);
+                    if (intermediateCrafts[item] <= 0) {
+                        delete intermediateCrafts[item];
+                    }
+                }
+            });
+
+            // 결과 표시
+            displayResults(baseMaterials, intermediateCrafts);
+        }
+
+        // 결과 표시
+        function displayResults(baseMaterials, intermediateCrafts) {
+            const resultArea = document.getElementById('resultArea');
+            
+            let html = '<div class="result-section">';
+            html += '<h3>🌿 필요한 기초 재료</h3>';
+            html += '<table class="result-table">';
+            html += '<tr><th>재료명</th><th style="width: 100px; text-align: right;">필요 수량</th></tr>';
+            
+            Object.entries(baseMaterials)
+                .sort((a, b) => a[0].localeCompare(b[0], 'ko'))
+                .forEach(([name, qty]) => {
+                    html += `<tr><td>${name}</td><td class="qty">${qty}개</td></tr>`;
+                });
+            
+            html += '</table></div>';
+
+            // 중간 재료가 있으면 표시
+            const intermediateItems = Object.entries(intermediateCrafts);
+            if (intermediateItems.length > 0) {
+                html += '<div class="result-section">';
+                html += '<h3>⚙️ 중간 재료 제작 횟수</h3>';
+                html += '<table class="result-table">';
+                html += '<tr><th>중간 재료</th><th style="width: 100px; text-align: right; white-space: nowrap;">제작 횟수</th><th style="width: 80px; text-align: right; white-space: nowrap;">생산량</th></tr>';
+                
+                intermediateItems
+                    .sort((a, b) => a[0].localeCompare(b[0], 'ko'))
+                    .forEach(([name, crafts]) => {
+                        const recipe = recipes[name];
+                        const totalYield = crafts * recipe.yield;
+                        html += `<tr><td>${name}</td><td class="crafts">${crafts}회</td><td class="crafts">${totalYield}개</td></tr>`;
+                    });
+                
+                html += '</table></div>';
+            }
+
+            resultArea.innerHTML = html;
+        }
+
+        // 레시피 목록 표시
+        function displayRecipes() {
+            const container = document.getElementById('recipeList');
+            let html = '';
+            
+            // 중간 재료 목록 (다른 레시피의 재료로 사용되는 것)
+            const intermediates = new Set();
+            Object.values(recipes).forEach(recipe => {
+                recipe.materials.forEach(mat => {
+                    if (recipes[mat.name]) {
+                        intermediates.add(mat.name);
+                    }
+                });
+            });
+            
+            // 완성품 먼저 가나다순, 중간재료 아래 가나다순
+            const sortedRecipes = Object.entries(recipes)
+                .sort((a, b) => {
+                    const aIsIntermediate = intermediates.has(a[0]);
+                    const bIsIntermediate = intermediates.has(b[0]);
+                    if (aIsIntermediate !== bIsIntermediate) {
+                        return aIsIntermediate ? 1 : -1;
+                    }
+                    return a[0].localeCompare(b[0], 'ko');
+                });
+            
+            let addedHeader = false;
+            sortedRecipes.forEach(([name, recipe]) => {
+                const materials = recipe.materials
+                    .map(m => `${m.name} ${m.qty}개`)
+                    .join(', ');
+                
+                const isIntermediate = intermediates.has(name);
+                
+                // 중간 재료 섹션 시작시 헤더 추가
+                if (!addedHeader && isIntermediate) {
+                    html += '<div style="margin: 15px 0 10px 0; padding: 5px; background: #ED7D31; color: white; border-radius: 5px; text-align: center; font-weight: bold;">⚙️ 중간 재료</div>';
+                    addedHeader = true;
+                }
+                
+                html += `
+                    <div class="recipe-item ${isIntermediate ? 'intermediate' : ''}" onclick="addItemToList('${name}')" oncontextmenu="removeItemFromList('${name}'); return false;" style="cursor: pointer;">
+                        <span class="recipe-name">${name}</span>
+                        <span class="recipe-yield">(${recipe.yield}개 생산)</span>
+                        <div class="recipe-materials">→ ${materials}</div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // 초기화
+        window.onload = function() {
+            displayRecipes();
+            loadList();
+        };
+    </script>
+</body>
+</html>
